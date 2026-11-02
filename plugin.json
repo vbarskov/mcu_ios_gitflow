@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mcu-ios-gitflow",
+  "version": "0.1.0",
+  "description": "Самостоятельный Git Flow для MCU iOS: Jira, исправление и коммит, отдельная публикация УЗС и КЗС.",
+  "author": {
+    "name": "MCU iOS"
+  },
+  "keywords": ["ios", "jira", "gitlab", "git-flow", "mcp"],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "displayName": "MCU iOS Git Flow",
+        "shortDescription": "Jira → исправление → УЗС и КЗС",
+        "longDescription": "Codex исправляет задачу в отдельной рабочей копии и сохраняет коммит. Git Flow запускается отдельно после проверки результата: preview, УЗС, разрешённое автором слияние и КЗС.",
+        "category": "Developer Tools",
+        "capabilities": ["Read", "Write"],
+        "defaultPrompt": [
+          "Настроить MCU iOS Git Flow",
+          "Исправить задачу Jira и подготовить коммит",
+          "Провести Git Flow для готовой ветки"
+        ]
+      }
+    }
+  }
+}
