@@ -1,6 +1,6 @@
 {
   "name": "mcu-ios-gitflow",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Самостоятельный Git Flow для MCU iOS: Jira, исправление и коммит, отдельная публикация УЗС и КЗС.",
   "author": {
     "name": "MCU iOS"

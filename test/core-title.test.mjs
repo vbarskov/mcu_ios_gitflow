@@ -11,7 +11,7 @@ test('УЗС и КЗС соответствуют порядку полей wiki
  assert.equal(title({...task,targetBranch:'minor/20.2',kzsBaseBranch:'release'},'kzs',{iid:9999}),'!9999 #9999 Что-то сделать №2. Контроль');
  assert.equal(title({...task,kzsTargetIsGzs:true,kzsBaseBranch:'release'},'kzs',{iid:9999}),'!9999 #9999 Что-то сделать №2. Контроль');
  assert.equal(title({...task,kzsTargetIsGzs:true,kzsBaseBranch:'release/26.0'},'kzs',{iid:9999}),'!9999 #9999 Что-то сделать №2. Контроль');
- assert.equal(title({...task,kzsBaseBranch:'minor/20.3',kzsTargetIsGzs:true,featureName:'Feature',reopened:true},'kzs',{iid:99}),'!99 #9999 🐥20.3 Feature Что-то сделать reopened №2. Контроль');
+ assert.equal(title({...task,kzsBaseBranch:'minor/20.3',kzsTargetIsGzs:true,featureName:'Feature',reopened:true},'kzs',{iid:99}),'!99 #9999 🐥20.3 🐬 Feature Что-то сделать reopened №2. Контроль');
 });
 
 test('Неизвестный MR обозначается только в preview; привязанный MR использует реальный номер',()=>{
