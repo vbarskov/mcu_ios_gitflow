@@ -1,9 +1,14 @@
 {
   "name": "mcu-ios-gitflow",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "type": "module",
   "description": "Самостоятельный плагин Codex для MCU iOS Git Flow",
+  "main": "./dsh/lib/index.js",
+  "exports": {
+    ".": "./dsh/lib/index.js",
+    "./package.json": "./package.json"
+  },
   "engines": {
     "node": ">=22.13"
   },

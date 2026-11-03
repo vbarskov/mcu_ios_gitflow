@@ -76,6 +76,9 @@ export async function validatePackage(root = packageRoot) {
   requireValue(dshPatch.includes(`id: ${pkg.name}`) && dshPatch.includes(`name: ${pkg.name}`), `DSH-патч должен подключать пакет ${pkg.name}`);
   const dshModule = await readFile(await containedPath(root, './dsh/lib/index.js'), 'utf8');
   await containedPath(root, './dsh/install-mcp.mjs');
+  requireValue(pkg.main === './dsh/lib/index.js', 'Точка входа пакета должна указывать на DSH-плагин');
+  requireValue(pkg.exports?.['.'] === './dsh/lib/index.js', 'Экспорт пакета должен указывать на DSH-плагин');
+  await containedPath(root, pkg.main);
 
   const skills = [];
   for (const entry of await readdir(path.join(root, 'skills'), { withFileTypes: true })) {
