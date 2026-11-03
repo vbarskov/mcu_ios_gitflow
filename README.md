@@ -17,7 +17,11 @@
 
 После подключения попросите: «Настроить MCU iOS Git Flow». Навыки доступны с префиксом `mcu-ios-gitflow:`, например `/skill:mcu-ios-gitflow:setup`. Состояние и токены общие с другими клиентами и хранятся отдельно в `~/.mcu-ios-gitflow/`.
 
-## Подключение в Codex
+## Установка
+
+Плагин подключается из одного и того же каталога: ниже — Codex и DeepSeek Harness, Kimi Code описан выше.
+
+### Codex
 
 В корне пакета уже есть переносимые `plugin.json` и `mcp.json`, совместимые `.codex-plugin/plugin.json` и `.mcp.json`, четыре навыка и локальный каталог `.agents/plugins/marketplace.json` с именем `mcu-local`.
 
@@ -34,23 +38,32 @@ codex plugin marketplace add vbarskov/mcu_ios_gitflow
 
 Открытие проекта и регистрация каталога делают пакет доступным для установки. Они не настраивают токены и не подтверждают подключение к Jira/GitLab. CLI не нужен для установки через каталог проекта. Пакет не изменяет общие настройки Codex самостоятельно. Порядок упаковки и локальных каталогов описан в [документации OpenAI](https://developers.openai.com/plugins/build/plugins).
 
-## Подключение в DeepSeek Harness
+### DeepSeek Harness
 
-В `package.json` объявлен `dsh.bundle.patch`, поэтому профиль DSH при установке подхватывает четыре навыка из `skills/` как bundled-провайдеры. MCP-сервер запускается отдельным процессом, и его путь зависит от машины, поэтому строка профиля добавляется скриптом.
+В `package.json` объявлен `dsh.bundle.patch`, поэтому профиль DSH при установке получает четыре навыка из `skills/` как bundled-провайдеры. MCP-сервер запускается отдельным процессом, и его путь зависит от машины, поэтому строку профиля добавляет скрипт.
+
+Нужны Node.js 22.13+ и установленное приложение DeepSeek Harness. Ниже используется профиль `desktop`; для Web-профиля замените его на `web`.
+
+1. Возьмите каталог пакета — клонированный репозиторий. Дальше `/absolute/path/to/mcu_ios_gitflow` означает его абсолютный путь.
+2. Подключите навыки в профиль (`link:` не копирует файлы, правки в каталоге видны сразу):
 
 ```sh
 DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
-
-# 1. Навыки: пакет ставится в профиль DSH
 "$DSH" plugin --profile desktop add link:/absolute/path/to/mcu_ios_gitflow
+```
 
-# 2. MCP mcu_ios_gitflow: идемпотентно дописывает блок в cordis.patch.yml профиля
+3. Добавьте MCP-сервер `mcu_ios_gitflow` в профиль:
+
+```sh
 node /absolute/path/to/mcu_ios_gitflow/dsh/install-mcp.mjs
 ```
 
-`dsh/install-mcp.mjs` правит `~/.dsh/profiles/desktop/cordis.patch.yml` (другой профиль — `--profile`, другой корень — `DSH_HOME`), не трогает чужие строки, заменяет свой блок при повторном запуске и умеет показать его без записи: `--print`. После установки начните новый чат DSH: навыки `setup`, `implement-task`, `git-flow`, `draft-descriptions` появятся в каталоге, а инструменты — с именами `mcu_*`.
+4. Перезапустите DeepSeek Harness и начните новый чат: в каталоге навыков появятся `setup`, `implement-task`, `git-flow`, `draft-descriptions`, а инструменты — с именами `mcu_*`. MCP подключается без перезапуска, навыки из `link:`-пакета — только после перезапуска приложения.
+5. Настройте подключения: «Настроить MCU iOS Git Flow» или `node scripts/setup.mjs` из каталога пакета. Адреса и токены общие с Codex — `~/.mcu-ios-gitflow/`.
 
-Обновление: повторите обе команды (скрипт поправит путь) и начните новый чат. Настройки и токены общие с Codex — `~/.mcu-ios-gitflow/`, `node scripts/setup.mjs` выполняется один раз.
+`dsh/install-mcp.mjs` правит `~/.dsh/profiles/desktop/cordis.patch.yml` (другой профиль — `--profile`, другой корень — `DSH_HOME`), не трогает чужие строки, заменяет свой блок при повторном запуске и умеет показать его без записи: `--print`.
+
+Обновление: повторите шаги 2–3 (скрипт поправит путь) и начните новый чат. Удаление: `"$DSH" plugin --profile desktop remove mcu-ios-gitflow` и блок `mcp-mcu-ios-gitflow` из `cordis.patch.yml`.
 
 ## Настройка
 
