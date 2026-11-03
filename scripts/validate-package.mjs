@@ -26,9 +26,10 @@ async function containedPath(root, relativePath) {
 }
 
 export async function validatePackage(root = packageRoot) {
-  const [manifest, compatibility, portableMcp, legacyMcp, marketplace, pkg] = await Promise.all([
+  const [manifest, compatibility, kimiManifest, portableMcp, legacyMcp, marketplace, pkg] = await Promise.all([
     json(root, 'plugin.json'),
     json(root, '.codex-plugin/plugin.json'),
+    json(root, 'kimi.plugin.json'),
     json(root, 'mcp.json'),
     json(root, '.mcp.json'),
     json(root, '.agents/plugins/marketplace.json'),
@@ -38,10 +39,15 @@ export async function validatePackage(root = packageRoot) {
   requireValue(manifest.name === 'mcu-ios-gitflow' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.name), 'Некорректный идентификатор плагина');
   requireValue(/^\d+\.\d+\.\d+$/.test(manifest.version), 'Версия должна иметь вид N.N.N');
   requireValue(Boolean(manifest.description?.trim()), 'Описание плагина обязательно');
-  requireValue(manifest.name === compatibility.name && manifest.name === pkg.name, 'Имена пакета и манифестов не совпадают');
-  requireValue(manifest.version === compatibility.version && manifest.version === pkg.version, 'Версии пакета и манифестов не совпадают');
-  requireValue(manifest.author?.name === 'MCU iOS' && manifest.author.name === compatibility.author?.name, 'Не совпадают авторы манифестов');
+  requireValue(manifest.name === compatibility.name && manifest.name === kimiManifest.name && manifest.name === pkg.name, 'Имена пакета и манифестов не совпадают');
+  requireValue(manifest.version === compatibility.version && manifest.version === kimiManifest.version && manifest.version === pkg.version, 'Версии пакета и манифестов не совпадают');
+  requireValue(manifest.author?.name === 'MCU iOS' && manifest.author.name === compatibility.author?.name && manifest.author.name === kimiManifest.author?.name, 'Не совпадают авторы манифестов');
   requireValue(compatibility.skills === './skills/' && compatibility.mcpServers === './.mcp.json', 'Некорректные ссылки совместимого манифеста');
+  requireValue(kimiManifest.skills === './skills/', 'Некорректная ссылка навыков Kimi Code');
+  const kimiServer = kimiManifest.mcpServers?.mcu_ios_gitflow;
+  requireValue(kimiServer?.command === 'node' && kimiServer.cwd === './', 'Не настроен stdio MCP Kimi Code');
+  requireValue(JSON.stringify(kimiServer.args) === JSON.stringify(['./scripts/mcp-server.mjs']), 'Некорректный путь MCP Kimi Code');
+  await containedPath(root, kimiManifest.skills);
   await containedPath(root, compatibility.skills);
   await containedPath(root, compatibility.mcpServers);
   const onboarding = manifest.extensions?.['com.openai']?.onboardingSkill;

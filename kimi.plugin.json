@@ -1,0 +1,23 @@
+{
+  "name": "mcu-ios-gitflow",
+  "version": "0.1.11",
+  "description": "Самостоятельный Git Flow для MCU iOS: Jira, исправление и коммит, УЗС/КЗС и сообщения ГЗС.",
+  "author": {
+    "name": "MCU iOS"
+  },
+  "keywords": ["ios", "jira", "gitlab", "git-flow", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": {
+    "mcu_ios_gitflow": {
+      "command": "node",
+      "args": ["./scripts/mcp-server.mjs"],
+      "cwd": "./"
+    }
+  },
+  "interface": {
+    "displayName": "MCU iOS Git Flow",
+    "shortDescription": "Jira → исправление → УЗС и КЗС",
+    "longDescription": "Kimi Code исправляет задачу в отдельной рабочей копии и сохраняет коммит. Git Flow запускается отдельно после проверки результата: preview, УЗС, разрешённое автором слияние и КЗС.",
+    "developerName": "MCU iOS"
+  }
+}
