@@ -6,6 +6,11 @@
  * доступны в DeepSeek Harness в любом рабочем каталоге. Инструкции читаются из
  * тех же `skills/<имя>/SKILL.md`, что использует Codex, поэтому текст один.
  *
+ * Контракт реестра DSH: у провайдера есть `name`, и каждый кандидат из
+ * `list()` обязан вернуть это же значение в поле `provider`. Иначе реестр
+ * отклоняет каталог навыков на каждом ходу — и падает каждое сообщение.
+ * Поэтому каждый навык обслуживается одноимённым провайдером.
+ *
  * Пакет импортирует только встроенные модули Node.js: так `link:`-установка
  * работает без зависимостей в профиле DSH.
  */
@@ -15,9 +20,6 @@ import { fileURLToPath } from 'node:url';
 
 /** Навыки плагина в порядке каталога. */
 export const SKILL_NAMES = ['setup', 'implement-task', 'git-flow', 'draft-descriptions'];
-
-/** Имя провайдера навыков в реестре DSH. */
-const PROVIDER_NAME = 'mcu-ios-gitflow';
 
 /** Ранг bundled-провайдера из `@deepseek-ai/dsh-skill`. */
 const BUNDLED_SKILL_RANK = 600;
@@ -87,7 +89,8 @@ async function loadSkill(name) {
     name,
     description,
     invocation: INVOCATION,
-    provider: PROVIDER_NAME,
+    // Реестр DSH требует, чтобы кандидат указывал имя своего провайдера.
+    provider: name,
     source: 'bundled',
     resourceBase: { kind: 'directory', path: skillDirectory(name) },
     path: fileURLToPath(file),
@@ -110,13 +113,13 @@ function skillProvider(name) {
 }
 
 /** Имя Cordis-плагина в списке плагинов профиля. */
-export const name = PROVIDER_NAME;
+export const name = 'mcu-ios-gitflow';
 
 /** Реестр навыков, который заполняет этот плагин. */
 export const inject = ['skills'];
 
 /**
- * Проверить инструкции и зарегистрировать четыре провайдера навыков.
+ * Проверить инструкции и зарегистрировать провайдеров навыков.
  * @param {import('@deepseek-ai/cordis').Context} ctx - контекст с `ctx.skills`.
  */
 export function apply(ctx) {

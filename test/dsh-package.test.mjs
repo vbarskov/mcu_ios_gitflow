@@ -54,7 +54,8 @@ test('плагин регистрирует четыре навыка с мет�
   for (const [index, provider] of providers.entries()) {
     const [candidate] = await provider.list();
     assert.equal(candidate.name, skillNames[index]);
-    assert.equal(candidate.provider, 'mcu-ios-gitflow');
+    assert.equal(candidate.provider, provider.name);
+    assert.equal(candidate.provider, skillNames[index]);
     assert.equal(candidate.source, 'bundled');
     assert.equal(candidate.rank, 600);
     assert.equal(candidate.invocation.modelInvocable, true);
