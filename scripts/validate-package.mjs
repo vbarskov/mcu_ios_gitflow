@@ -65,6 +65,11 @@ export async function validatePackage(root = packageRoot) {
   await containedPath(root, entry.source.path);
   requireValue(!pkg.dependencies && !pkg.devDependencies, 'Плагин должен работать без внешних npm-зависимостей');
   requireValue(pkg.type === 'module' && pkg.engines?.node === '>=22.13', 'Требуется Node.js 22.13+ и ESM');
+  requireValue(pkg.dsh?.bundle?.patch === './dsh/cordis.patch.yml', 'Не указан DSH-слой пакета');
+  const dshPatch = await readFile(await containedPath(root, pkg.dsh.bundle.patch), 'utf8');
+  requireValue(dshPatch.includes(`id: ${pkg.name}`) && dshPatch.includes(`name: ${pkg.name}`), `DSH-патч должен подключать пакет ${pkg.name}`);
+  const dshModule = await readFile(await containedPath(root, './dsh/lib/index.js'), 'utf8');
+  await containedPath(root, './dsh/install-mcp.mjs');
 
   const skills = [];
   for (const entry of await readdir(path.join(root, 'skills'), { withFileTypes: true })) {
@@ -78,6 +83,7 @@ export async function validatePackage(root = packageRoot) {
     skills.push(entry.name);
   }
   for (const required of ['setup', 'implement-task', 'git-flow']) requireValue(skills.includes(required), `Нет навыка ${required}`);
+  for (const skillName of skills) requireValue(dshModule.includes(`'${skillName}'`), `Навык ${skillName} не зарегистрирован в DSH-слое`);
   await access(path.join(root, 'README.md'));
   return { name: manifest.name, version: manifest.version, skills: skills.sort() };
 }

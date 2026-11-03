@@ -1,17 +1,23 @@
 {
   "name": "mcu-ios-gitflow",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": true,
   "type": "module",
   "description": "Самостоятельный плагин Codex для MCU iOS Git Flow",
   "engines": {
     "node": ">=22.13"
   },
+  "dsh": {
+    "bundle": {
+      "patch": "./dsh/cordis.patch.yml"
+    }
+  },
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "check": "node scripts/check.mjs",
     "validate": "node scripts/validate-package.mjs",
     "test": "node --test test/*.test.mjs",
-    "mcp": "node scripts/mcp-server.mjs"
+    "mcp": "node scripts/mcp-server.mjs",
+    "dsh:mcp": "node dsh/install-mcp.mjs"
   }
 }
