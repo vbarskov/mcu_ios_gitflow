@@ -63,7 +63,7 @@ test('КЗС использует собственный diff; пустой diff
  const visited=[];
  const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release'}},async(_task,path)=>{visited.push(path);return [];});
  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
- assert.equal(result.text,'КЗС https://git.example.test/20\n√0, release >= 2');
+ assert.equal(result.text,'КЗС https://git.example.test/20\n√0, release >= 2, без демо');
  assert.deepEqual(result.missingData,[]);assert.deepEqual(visited,['/merge_requests/20/diffs']);
  task.assets.push({kind:'after',remote:{url:'/uploads/video.mp4'}});
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
@@ -140,7 +140,7 @@ test('форматы КЗС release и явного ГЗС соответств�
  task.kzs.target_branch='release/26';
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, release/26 >= 2, демо');
  task.kzs.target_branch='minor/20.2';task.afterUrl='';
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, minor/20.2 >= 2');
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, minor/20.2 >= 2, без демо');
  task.kzs.target_branch='custom/group';task.kzsTargetIsGzs=false;
  assert.ok(!(await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text.includes('🐬'));
 });
@@ -148,4 +148,42 @@ test('форматы КЗС release и явного ГЗС соответств�
 test('название из Wiki распознаётся и при маркере вплотную к инфинитиву',async()=>{
  const {plugin,task}=fixture({title:'Исправить старую задачу',uzs:{iid:10,web_url:'https://git.example.test/10',title:'!10 #1 🐥20.2 💀Доработать импорт комнат №2. Дубль в минор'}});
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'uzs'})).text,/^Сливаю УЗС-2: Доработать импорт комнат\n/);
+});
+
+test('КЗС явно сообщает об отсутствии демо; код и пояснение не заменяют результат',async()=>{
+ const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release'},demo:'Пояснение демонстрации',assets:[{kind:'code',remote:{url:'/uploads/code.png'}}]},async()=>[]);
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, release >= 2, без демо');
+ task.assets.push({kind:'after',remote:{url:'/uploads/result.mp4'}});
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
+});
+
+test('привязанный КЗС сохраняет дельфина из служебного префикса MR при отсутствующем флаге',async()=>{
+ const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning/giant',title:'!20 #1 🐬 Доработать планирование №2. Контроль'}},async()=>[]);
+ const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:20});
+ assert.equal(result.text,'🐬 КЗС в feature/planning/giant: https://git.example.test/20\n√0, 🐬, feature/planning/giant >= 2, тест (20 сек), без демо');
+ task.kzs.title='!20 #1 [🐬] Доработать планирование №2. Контроль';
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/^🐬 КЗС/);
+ task.kzsTargetIsGzs=false;
+ assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
+ delete task.kzsTargetIsGzs;task.kzs.target_branch='release';
+ assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
+ task.kzs.target_branch='feature/planning/giant';task.kzs.title='!20 #1 Доработать планирование 🐬 №2. Контроль';
+ assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
+});
+
+test('демо Стало в описании привязанного КЗС подтверждает наличие; пустой раздел и код — нет',async()=>{
+ const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release',description:'## Демонстрация\n\n![Стало](/uploads/result.mp4){width=250}'}},async()=>[]);
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
+ task.kzs.description='## Демонстрация\n\n![Код](/uploads/code.png)';
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, без демо$/);
+ task.kzs.description='## Демонстрация\n\n```text\n![Стало](/uploads/example.mp4)\n```';
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, без демо$/);
+});
+
+test('неизвестное состояние демо отмечается пропуском, подтверждённое исключение означает без демо',async()=>{
+ const {plugin,task}=fixture({assets:undefined,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release'}},async()=>[]);
+ const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
+ assert.match(result.text,/, демо \[не указано\]$/);assert.ok(result.missingData.includes('demo'));
+ task.kzsWithoutDemoConfirmed=true;
+ assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, без демо$/);
 });
