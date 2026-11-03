@@ -59,7 +59,7 @@ test('Git: УЗС → внешний merge → КЗС с фото «Стало»
     const kp=join(store.dir,'worktrees',t.id,'kzs');
     assert.equal(g(kp,'diff','--name-only','origin/control...HEAD'),'');
     assert.equal(g(kp,'log','--format=%s','origin/control..HEAD'),'Отступ\nОтступ');
-    assert.equal(t.stage,'kzs');assert.match(api.mrs[1].description,/Заголовок\n- !2 #1 Исправить сценарий №2\. Контроль/);assert.match(api.mrs[1].description,/Включает следующие УЗС:\n1\. !1/);
+    assert.equal(t.stage,'kzs');assert.equal(api.mrs[1].title,'!2 #1 Исправить сценарий №2. Контроль');assert.doesNotMatch(api.mrs[1].description,/^Заголовок$/m);assert.match(api.mrs[1].description,/^Включает следующие УЗС:\n1\. !1/);
   }finally{store.close();await rm(dir,{recursive:true,force:true});}
 });
 test('размер УЗС после 500 строк является предупреждением',()=>{
