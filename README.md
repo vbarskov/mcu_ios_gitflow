@@ -19,10 +19,6 @@
 
 После подключения попросите: «Настроить MCU iOS Git Flow». Навыки доступны с префиксом `mcu-ios-gitflow:`, например `/skill:mcu-ios-gitflow:setup`. Состояние и токены общие с другими клиентами и хранятся отдельно в `~/.mcu-ios-gitflow/`.
 
-## Установка
-
-Плагин подключается из одного и того же каталога: ниже — Codex и DeepSeek Harness, Kimi Code описан выше.
-
 ### Codex
 
 В корне пакета уже есть переносимые `plugin.json` и `mcp.json`, совместимые `.codex-plugin/plugin.json` и `.mcp.json`, четыре навыка и локальный каталог `.agents/plugins/marketplace.json` с именем `mcu-local`.
