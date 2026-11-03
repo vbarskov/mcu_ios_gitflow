@@ -136,10 +136,10 @@ test('при известном общем размере и отсутстви�
 
 test('форматы КЗС release и явного ГЗС соответствуют назначению, демо только фактическое',async()=>{
  const {plugin,task}=fixture({kzsTargetIsGzs:true,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning'},afterUrl:'https://git.example.test/demo.mp4'},async()=>[]);
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:276})).text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, 🐬, feature/planning >= 2, тест (276 сек), демо');
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:276})).text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, feature/planning >= 2, тест (276 сек), демо');
  task.kzs.target_branch='release/26';
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, release/26 >= 2, демо');
- task.kzs.target_branch='minor/20.2';task.afterUrl='';
+ task.kzs.target_branch='minor/20.2';task.afterUrl='';task.kzsTargetIsGzs=false;
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, minor/20.2 >= 2, без демо');
  task.kzs.target_branch='custom/group';task.kzsTargetIsGzs=false;
  assert.ok(!(await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text.includes('🐬'));
@@ -157,18 +157,14 @@ test('КЗС явно сообщает об отсутствии демо; ко�
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
 });
 
-test('привязанный КЗС сохраняет дельфина из служебного префикса MR при отсутствующем флаге',async()=>{
- const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning/giant',title:'!20 #1 🐬 Доработать планирование №2. Контроль'}},async()=>[]);
- const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:20});
- assert.equal(result.text,'🐬 КЗС в feature/planning/giant: https://git.example.test/20\n√0, 🐬, feature/planning/giant >= 2, тест (20 сек), без демо');
- task.kzs.title='!20 #1 [🐬] Доработать планирование №2. Контроль';
- assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/^🐬 КЗС/);
- task.kzsTargetIsGzs=false;
- assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
- delete task.kzsTargetIsGzs;task.kzs.target_branch='release';
- assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
- task.kzs.target_branch='feature/planning/giant';task.kzs.title='!20 #1 Доработать планирование 🐬 №2. Контроль';
- assert.doesNotMatch((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/🐬/);
+test('неподтверждённый ГЗС вызывает вопрос до API, маркер MR и giant не служат ответом',async()=>{
+ for(const title of ['!20 #1 🐬 Доработать планирование №2. Контроль','!20 #1 [🐬] Доработать планирование №2. Контроль','Доработать планирование']) {
+  const {plugin,task,counters}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning/giant',title}},async()=>[]);
+  const before=structuredClone(task);
+  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
+  assert.deepEqual(result,{text:null,needsInput:true,missingData:['kzsTargetIsGzs'],question:'КЗС !20 направлен в «feature/planning/giant». Это запрос в ГЗС?',lineCounts:{total:null,technical:null,ordinary:null}});
+  assert.deepEqual(counters(),{writes:0,apiReads:0});assert.deepEqual(task,before);
+ }
 });
 
 test('демо Стало в описании привязанного КЗС подтверждает наличие; пустой раздел и код — нет',async()=>{
@@ -186,4 +182,57 @@ test('неизвестное состояние демо отмечается п
  assert.match(result.text,/, демо \[не указано\]$/);assert.ok(result.missingData.includes('demo'));
  task.kzsWithoutDemoConfirmed=true;
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, без демо$/);
+});
+
+
+test('разовое подтверждение ГЗС имеет приоритет и не записывается; дельфин только в первой строке',async()=>{
+ const {plugin,task,counters}=fixture({kzsTargetIsGzs:false,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning'}},async()=>[]);
+ const before=structuredClone(task);
+ const positive=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true,testSeconds:20});
+ assert.equal(positive.text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, feature/planning >= 2, тест (20 сек), без демо');
+ assert.equal(positive.text.split('\n')[1].includes('🐬'),false);
+ assert.deepEqual(task,before);
+ task.kzsTargetIsGzs=true;const savedTrue=structuredClone(task);
+ const negative=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:false});
+ assert.equal(negative.text,'КЗС https://git.example.test/20\n√0, feature/planning >= 2, без демо');
+ assert.deepEqual(task,savedTrue);assert.deepEqual(counters(),{writes:0,apiReads:2});
+});
+
+test('release всегда без дельфина и без вопроса, даже при конфликтующем подтверждении true',async()=>{
+ for(const target_branch of ['release','release/26']) {
+  const {plugin,task,counters}=fixture({kzsTargetIsGzs:true,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch,title:'!20 #1 🐬 Доработать планирование №2. Контроль'}},async()=>[]);
+  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true});
+  assert.equal(result.text,`КЗС https://git.example.test/20\n√0, ${target_branch} >= 2, без демо`);
+  assert.equal(result.needsInput,undefined);assert.ok(!result.text.includes('🐬'));
+  assert.deepEqual(counters(),{writes:0,apiReads:1});
+ }
+});
+
+test('minor требует подтверждения как любое назначение вне release',async()=>{
+ const {plugin,task,counters}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'minor/20.2'}},async()=>[]);
+ const before=structuredClone(task);
+ const question=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
+ assert.equal(question.text,null);assert.equal(question.needsInput,true);
+ assert.deepEqual(question.missingData,['kzsTargetIsGzs']);assert.deepEqual(counters(),{writes:0,apiReads:0});
+ const answer=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true,testSeconds:5});
+ assert.equal(answer.text,'🐬 КЗС в minor/20.2: https://git.example.test/20\n√0, minor/20.2 >= 2, тест (5 сек), без демо');
+ assert.deepEqual(task,before);
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,null);
+ assert.deepEqual(counters(),{writes:0,apiReads:1});
+});
+
+test('отсутствующая фактическая ветка спрашивается раньше классификации ГЗС и API',async()=>{
+ const {plugin,task,counters}=fixture({targetBranch:'',kzsBaseBranch:'',kzs:{iid:20,web_url:'https://git.example.test/20'}},async()=>[]);
+ const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true});
+ assert.equal(result.text,null);assert.equal(result.needsInput,true);
+ assert.deepEqual(result.missingData,['targetBranch']);assert.match(result.question,/фактическ.*ветк/i);
+ assert.deepEqual(result.lineCounts,{total:null,technical:null,ordinary:null});
+ assert.deepEqual(counters(),{writes:0,apiReads:0});
+});
+
+test('УЗС не спрашивает про ГЗС и не меняет формат при переданном ответе',async()=>{
+ const {plugin,task}=fixture();
+ const before=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'uzs',testSeconds:1});
+ const after=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'uzs',testSeconds:1,kzsTargetIsGzs:true});
+ assert.deepEqual(after,before);assert.equal(after.needsInput,undefined);
 });
