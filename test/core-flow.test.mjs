@@ -6,14 +6,14 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Store } from '../lib/core/store.mjs';
 import { Flow, git, remoteProject, reviewDiscussions, uzsSizeWarning } from '../lib/core/flow.mjs';
-import { description, updateIncludedUzs } from '../lib/core/description.mjs';
+import { description, updateIncludedUzs, title as requestTitle } from '../lib/core/description.mjs';
 const g=(cwd,...args)=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
 class FakeAPI {
   constructor(){this.mrs=[];this.uploads=0;this.failCreate=false;}
   project(){return '/projects/1';}
   async request(path){if(path==='/user')return {id:7};return {path_with_namespace:'demo/repo'};}
   async find(t,branch){return this.mrs.find(m=>m.source_branch===branch);}
-  async ensureMR(t,branch,title,description,kind){if(this.failCreate){this.failCreate=false;throw new Error('Временный сбой API');}let m=await this.find(t,branch);if(!m){m={iid:this.mrs.length+1,state:'opened',source_branch:branch,target_branch:t.targetBranch,author:{id:7},title,description,kind};this.mrs.push(m);}return {...m};}
+  async ensureMR(t,branch,title,description,kind){if(this.failCreate){this.failCreate=false;throw new Error('Временный сбой API');}let m=await this.find(t,branch);if(!m){m={iid:this.mrs.length+1,state:'opened',source_branch:branch,target_branch:t.targetBranch,author:{id:7},title:requestTitle(t,kind,{iid:this.mrs.length+1}),description,kind};this.mrs.push(m);}return {...m};}
   async update(t,iid,body){const mr=this.mrs.find(item=>item.iid===iid);Object.assign(mr,body);return {...mr};}
   async mr(t,iid){return {...this.mrs.find(m=>m.iid===iid)};}
   async list(){return [{old_path:'Modules/Example/file.swift',new_path:'Modules/Example/file.swift'}];}
@@ -59,7 +59,7 @@ test('Git: УЗС → внешний merge → КЗС с фото «Стало»
     const kp=join(store.dir,'worktrees',t.id,'kzs');
     assert.equal(g(kp,'diff','--name-only','origin/control...HEAD'),'');
     assert.equal(g(kp,'log','--format=%s','origin/control..HEAD'),'Отступ\nОтступ');
-    assert.equal(t.stage,'kzs');assert.match(api.mrs[1].description,/Заголовок\n- !2 #1 \[🐬\] Исправить сценарий №2\. Контроль/);assert.match(api.mrs[1].description,/Включает следующие УЗС:\n1\. !1/);
+    assert.equal(t.stage,'kzs');assert.match(api.mrs[1].description,/Заголовок\n- !2 #1 Исправить сценарий №2\. Контроль/);assert.match(api.mrs[1].description,/Включает следующие УЗС:\n1\. !1/);
   }finally{store.close();await rm(dir,{recursive:true,force:true});}
 });
 test('размер УЗС после 500 строк является предупреждением',()=>{
@@ -92,7 +92,7 @@ test('возврат задачи: новый УЗС создаётся толь
   const dir=await mkdtemp(join(tmpdir(),'flow-reopen-create-')),store=new Store(dir),requests=[];
   const uzs={iid:10,state:'merged'},kzs={iid:20,state:'merged',description:'Включает УЗС: !10.'};
   let extra;
-  const api={project:()=>'/projects/1',mr:async(_,iid)=>({10:uzs,20:kzs,30:extra})[iid],find:async()=>null,update:async(_,iid,body)=>Object.assign(kzs,body),request:async(path,method,body)=>{requests.push({path,method,body});if(path==='/user')return {id:7};if(method==='POST'){extra={iid:30,state:'opened',source_branch:body.source_branch,target_branch:body.target_branch,web_url:'https://git.test/30'};return extra;}return {name:'branch'};}};
+  const api={project:()=>'/projects/1',mr:async(_,iid)=>({10:uzs,20:kzs,30:extra})[iid],find:async()=>null,update:async(_,iid,body)=>Object.assign(iid===30?extra:kzs,body),request:async(path,method,body)=>{requests.push({path,method,body});if(path==='/user')return {id:7};if(method==='POST'){extra={iid:30,state:'opened',source_branch:body.source_branch,target_branch:body.target_branch,web_url:'https://git.test/30'};return extra;}return {name:'branch'};}};
   const flow=new Flow(store,{},api,{workingAdditional:async()=>({dirty:false}),analyzeAdditional:async()=>({done:'Убран повторный сбой',result:'Работает',changes:[{module:'PickUsers',text:'Исправлена проверка'}]})}),t=store.create({key:'TEST-1',title:'Исправить ошибку',uzs,kzs,assets:[]});
   try{
     await flow.reopen(t);
@@ -103,6 +103,7 @@ test('возврат задачи: новый УЗС создаётся толь
     assert.equal(requests.find(row=>row.method==='POST').body.source_branch,'feature/TEST-1-fix');
     assert.match(kzs.description,/Включает следующие УЗС:\n1\. !10\n2\. !30/);
     assert.equal(t.additionalUzs.length,1);
+    assert.equal(t.additionalUzs[0].title,'!30 #1 💀 Исправить ошибку reopened №3. Убран повторный сбой');
   }finally{store.close();await rm(dir,{recursive:true,force:true});}
 });
 test('незакоммиченные изменения после возврата требуют просмотра файлов и подтверждения',async()=>{
@@ -130,7 +131,7 @@ test('ветка только в локальном проекте публик�
   g(repo,'push','origin','release');g(repo,'switch','-c','feature/TEST-1-followup');
   await writeFile(join(repo,'fix.swift'),'fix');g(repo,'add','.');g(repo,'commit','-m','fix');
   const store=new Store(join(dir,'data')),uzs={iid:10,state:'merged'},kzs={iid:20,state:'merged',description:'Включает УЗС: !10.'};let extra;
-  const api={project:()=>'/projects/1',mr:async(_,iid)=>({10:uzs,20:kzs,30:extra})[iid],find:async()=>null,update:async(_,iid,body)=>Object.assign(kzs,body),request:async(path,method,body)=>{
+  const api={project:()=>'/projects/1',mr:async(_,iid)=>({10:uzs,20:kzs,30:extra})[iid],find:async()=>null,update:async(_,iid,body)=>Object.assign(iid===30?extra:kzs,body),request:async(path,method,body)=>{
     if(path==='/user')return {id:7};
     if(path==='/projects/1')return {path_with_namespace:'demo/repo'};
     if(path.includes('/repository/branches/feature%2F')){try{g(remote,'show-ref','--verify','refs/heads/feature/TEST-1-followup');}catch{throw new Error('GitLab: HTTP 404');}}
@@ -245,4 +246,13 @@ test('ошибка слияния объясняет заблокированн�
   const flow=new Flow(store,{},api),t=store.create({uzs:mr,verification:'Проверено'});
   try { await assert.rejects(()=>flow.merge(t,'Слить !1'),/pipeline #353688.*ручного задания/); }
   finally { store.close();await rm(dir,{recursive:true,force:true}); }
+});
+
+test('дополнительный УЗС с повреждённым черновиком блокируется до сети и отправки ветки',async()=>{
+  const task={key:'APP-42',title:'Исправить ошибку',reopenedAt:'2026-11-03',additionalUzsDraft:{sourceBranch:'feature/fix',targetBranch:'release',uzsPartNumber:3,done:''}};
+  let remoteCalls=0;
+  const flow=new Flow({save(){},event(){}},{},{});
+  flow.sync=async()=>{remoteCalls++;throw new Error('Началась сеть');};
+  await assert.rejects(flow.addAdditionalUzs(task),/Заполните|краткий итог/);
+  assert.equal(remoteCalls,0);
 });

@@ -2,14 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { title, description } from '../lib/core/description.mjs';
 import { GitLab } from '../lib/core/gitlab.mjs';
-test('длинный заголовок сокращается; полный итог остаётся в описании', () => {
- const t={key:'VCSMOB-15559',title:'Очень длинное название '.repeat(30),done:'Подробный итог '.repeat(40),changes:[],jiraUrl:'https://jira.test/1'};
- const value=title(t,'uzs');
- assert.ok([...value].length<=240);assert.match(value,/#15559 💀/);assert.match(value,/№1$/);
- assert.ok(!value.includes(t.done));
- assert.equal(title({...t,done:'Сохранён ввод пароля при ошибке гостевого входа'},'uzs'),value);
+test('длинный заголовок отклоняется без потери исходного названия и итога', () => {
+ const t={key:'VCSMOB-15559',title:'Исправить очень длинное название '.repeat(30),done:'Подробный итог '.repeat(40),changes:[],jiraUrl:'https://jira.test/1'};
+ assert.throws(()=>title(t,'uzs'),/Сократите|255/);
  assert.ok(description(t,'uzs').includes(t.done));
- assert.ok([...`!123456789 ${value}`].length<=255);
+ const short={...t,title:'Исправить гостевой вход',done:'Сохранён ввод пароля при ошибке гостевого входа'};
+ assert.equal(title(short,'uzs',{iid:123}),'!123 #15559 💀 Исправить гостевой вход №1. Сохранён ввод пароля при ошибке гостевого входа');
 });
 test('ошибка GitLab сообщает причину без тела ответа и секретов', async t => {
  t.mock.method(globalThis,'fetch',async()=>new Response(JSON.stringify({message:{title:['is too long (maximum is 255 characters)']},token:'secret'}),{status:400}));

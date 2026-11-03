@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "mcu-ios-gitflow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Самостоятельный Git Flow для MCU iOS: Jira, исправление и коммит, отдельная публикация УЗС и КЗС.",
   "author": {
     "name": "MCU iOS"

@@ -101,3 +101,57 @@ test('предпросмотр привязанного УЗС использу�
     assert.equal(result.uzs.iid,1);
   }finally{plugin.close();}
 });
+
+test('поля заголовка УЗС сохраняются и preview показывает полный русский заголовок по правилам wiki',async()=>{
+  const {plugin,config}=await fixture();
+  const t=plugin.store.create({key:'VCSMOB-15839',title:'Доработать планирование мероприятий и комнат',done:'Сохранены настройки мероприятия',result:'Настройки сохраняются',repoPath:config.get().repoPath,project:'team/app',gitlabUrl:'https://git.example.test',jiraBaseUrl:'https://jira.example.test',sourceBranch:'feature/15839',targetBranch:'minor/20.2',changes:[{module:'Мероприятия',text:'Сохранение настроек'}],uzs:{iid:361,state:'opened',sha:'bound-sha'}});
+  try {
+    await plugin.call('mcu_update_task',{taskId:t.id,featureName:'Мероприятия',uzsPartNumber:3,kzsPartNumber:4,reopened:true});
+    const preview=await plugin.call('mcu_preview',{taskId:t.id,kind:'uzs'});
+    assert.equal(preview.title,'!361 #15839 🐥20.2 💀 Мероприятия Доработать планирование мероприятий и комнат reopened №3. Сохранены настройки мероприятия');
+    assert.equal(plugin.task(t.id).kzsPartNumber,4);
+    const savedToken=preview.previewToken;
+    await plugin.call('mcu_update_task',{taskId:t.id,uzsPartNumber:4});
+    await assert.rejects(plugin.call('mcu_publish',{taskId:t.id,kind:'uzs',previewToken:savedToken}),/предпросмотр/);
+  }finally{plugin.close();}
+});
+
+test('краткий итог заголовка должен быть одной строкой на русском, имя задачи остаётся инфинитивом',async()=>{
+  const {plugin}=await fixture();
+  const t=plugin.store.create({key:'APP-1',title:'Исправить ошибку',done:'Исправлена ошибка',changes:[]});
+  try {
+    await assert.rejects(plugin.call('mcu_update_task',{taskId:t.id,done:'Fixed scheduling'}),/русск/);
+    await assert.rejects(plugin.call('mcu_update_task',{taskId:t.id,done:'Исправлена ошибка\nСводка'}),/строк/);
+    await assert.rejects(plugin.call('mcu_update_task',{taskId:t.id,uzsPartNumber:0}),/uzsPartNumber/);
+    await plugin.call('mcu_update_task',{taskId:t.id,title:'Добавить контроль',done:'Добавлена проверка URL'});
+    assert.equal(plugin.task(t.id).title,'Добавить контроль');
+  }finally{plugin.close();}
+});
+
+test('обновление описания отправляет в GitLab тот же заголовок, который автор видел в preview',async context=>{
+  const {plugin,config}=await fixture();
+  const mr={iid:361,state:'opened',sha:'bound-sha',title:'!361 #15839 Старый заголовок',description:'Исходное описание'};
+  const t=plugin.store.create({key:'VCSMOB-15839',title:'Исправить сохранение настроек',done:'Сохранены настройки мероприятия',result:'Настройки сохраняются',repoPath:config.get().repoPath,project:'team/app',gitlabUrl:'https://git.example.test',jiraBaseUrl:'https://jira.example.test',sourceBranch:'feature/deleted',targetBranch:'release',changes:[{module:'Мероприятия',text:'Сохранение настроек'}],uzs:mr});
+  const updates=[];
+  context.mock.method(globalThis,'fetch',async (_url,options={})=>{
+    if(options.method==='PUT'){const body=JSON.parse(options.body);updates.push(body);return new Response(JSON.stringify({...mr,...body}));}
+    return new Response(JSON.stringify(mr));
+  });
+  config.saveCredentials({gitlabToken:'test-token'});
+  try {
+    const preview=await plugin.call('mcu_preview',{taskId:t.id,kind:'uzs'});
+    await plugin.call('mcu_publish_description',{taskId:t.id,kind:'uzs',previewToken:preview.previewToken});
+    assert.equal(updates.length,1);
+    assert.equal(updates[0].title,preview.title);
+    assert.equal(updates[0].title,'!361 #15839 💀 Исправить сохранение настроек №1. Сохранены настройки мероприятия');
+  }finally{plugin.close();}
+});
+
+test('выбор release для КЗС сбрасывает устаревший статус назначения в ГЗС',async()=>{
+  const {plugin,config}=await fixture();
+  const t=plugin.store.create({key:'APP-1',title:'Исправить поведение',done:'Исправлена ошибка',result:'Работает',repoPath:config.get().repoPath,project:'team/app',gitlabUrl:'https://git.example.test',jiraBaseUrl:'https://jira.example.test',sourceBranch:'feature/fix',targetBranch:'release',kzsTargetIsGzs:true,uzs:{iid:1,state:'merged',sha:'sha'},changes:[{module:'App',text:'Исправление'}]});
+  try {
+    await plugin.call('mcu_confirm_kzs',{taskId:t.id,baseBranch:'release/26.0'});
+    assert.equal(plugin.task(t.id).kzsTargetIsGzs,false);
+  }finally{plugin.close();}
+});

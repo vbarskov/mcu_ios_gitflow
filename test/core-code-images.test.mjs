@@ -44,7 +44,7 @@ test('Снимки ограничены ключевыми файлами; те�
  await prepareCodeImages({dir,save(){}},{list:async()=>paths.map(new_path=>({new_path,diff:'@@ -1 +1 @@\n-old\n+new'}))},t,async()=>Buffer.from('png'));
  assert.deepEqual(t.assets.map(a=>a.codePath),['Modules/M/main.swift']);
  const {description}=await import('../lib/core/description.mjs');
- t.key='TEST-1';t.changes.push({module:'Tests',text:'служебное'});t.demo='баннер';
+ t.key='TEST-1';t.title='Исправить главное поведение';t.changes.push({module:'Tests',text:'служебное'});t.demo='баннер';
  const text=description(t,'kzs',true);assert.ok(!text.includes('| Tests |'));assert.ok(!text.includes('| history |'));
  }finally{await rm(dir,{recursive:true,force:true});}
 });
@@ -55,7 +55,7 @@ test('снимок сопоставляется с модулем во влож�
  await prepareCodeImages({dir,save(){}},{list:async()=>[{new_path:path,diff:'@@ -1 +1 @@\n-old\n+new'}]},t,async()=>Buffer.from('png'));
  assert.equal(t.assets[0].module,'M5MediaPIPContent');
  const {description}=await import('../lib/core/description.mjs');
- t.key='TEST-2';t.demo='проверка';
+ t.key='TEST-2';t.title='Исправить модуль';t.demo='проверка';
  const text=description(t,'kzs',true);
  assert.match(text,/\| M5MediaPIPContent \|.*!\[Код\]/);
  }finally{await rm(dir,{recursive:true,force:true});}
@@ -68,7 +68,7 @@ test('снимок сопоставляется с перечислением м
   await prepareCodeImages({dir,save(){}},{list:async()=>[{new_path:path,diff:'@@ -1 +1 @@\n-old\n+new'}]},t,async()=>Buffer.from('png'));
   assert.equal(t.assets[0].module,group);
   const {description}=await import('../lib/core/description.mjs');
-  t.key='TEST-3';t.jiraUrl='https://jira.example.test/TEST-3';
+  t.key='TEST-3';t.title='Исправить выбор пользователей';t.jiraUrl='https://jira.example.test/TEST-3';
   assert.match(description(t,'kzs',true),/\| PickUsers, PickUsersGroup, M5PUsers \|.*!\[Код\]/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
