@@ -1,6 +1,6 @@
 {
   "name": "mcu-ios-gitflow",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "type": "module",
   "description": "Самостоятельный плагин Codex для MCU iOS Git Flow",
