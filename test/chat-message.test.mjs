@@ -63,7 +63,7 @@ test('КЗС использует собственный diff; пустой diff
  const visited=[];
  const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release'}},async(_task,path)=>{visited.push(path);return [];});
  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
- assert.equal(result.text,'КЗС https://git.example.test/20\n√0, release >= 2, без демо');
+ assert.equal(result.text,'КЗС: https://git.example.test/20\n√0, release >= 2, без демо');
  assert.deepEqual(result.missingData,[]);assert.deepEqual(visited,['/merge_requests/20/diffs']);
  task.assets.push({kind:'after',remote:{url:'/uploads/video.mp4'}});
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
@@ -138,9 +138,9 @@ test('форматы КЗС release и явного ГЗС соответств�
  const {plugin,task}=fixture({kzsTargetIsGzs:true,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning'},afterUrl:'https://git.example.test/demo.mp4'},async()=>[]);
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:276})).text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, feature/planning >= 2, тест (276 сек), демо');
  task.kzs.target_branch='release/26';
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, release/26 >= 2, демо');
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС: https://git.example.test/20\n√0, release/26 >= 2, демо');
  task.kzs.target_branch='minor/20.2';task.afterUrl='';task.kzsTargetIsGzs=false;
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, minor/20.2 >= 2, без демо');
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС: https://git.example.test/20\n√0, minor/20.2 >= 2, без демо');
  task.kzs.target_branch='custom/group';task.kzsTargetIsGzs=false;
  assert.ok(!(await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text.includes('🐬'));
 });
@@ -152,7 +152,7 @@ test('название из Wiki распознаётся и при маркер
 
 test('КЗС явно сообщает об отсутствии демо; код и пояснение не заменяют результат',async()=>{
  const {plugin,task}=fixture({kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'release'},demo:'Пояснение демонстрации',assets:[{kind:'code',remote:{url:'/uploads/code.png'}}]},async()=>[]);
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС https://git.example.test/20\n√0, release >= 2, без демо');
+ assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС: https://git.example.test/20\n√0, release >= 2, без демо');
  task.assets.push({kind:'after',remote:{url:'/uploads/result.mp4'}});
  assert.match((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,/, демо$/);
 });
@@ -194,7 +194,7 @@ test('разовое подтверждение ГЗС имеет приорит
  assert.deepEqual(task,before);
  task.kzsTargetIsGzs=true;const savedTrue=structuredClone(task);
  const negative=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:false});
- assert.equal(negative.text,'КЗС https://git.example.test/20\n√0, feature/planning >= 2, без демо');
+ assert.equal(negative.text,'КЗС: https://git.example.test/20\n√0, feature/planning >= 2, без демо');
  assert.deepEqual(task,savedTrue);assert.deepEqual(counters(),{writes:0,apiReads:2});
 });
 
@@ -202,7 +202,7 @@ test('release всегда без дельфина и без вопроса, д�
  for(const target_branch of ['release','release/26']) {
   const {plugin,task,counters}=fixture({kzsTargetIsGzs:true,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch,title:'!20 #1 🐬 Доработать планирование №2. Контроль'}},async()=>[]);
   const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true});
-  assert.equal(result.text,`КЗС https://git.example.test/20\n√0, ${target_branch} >= 2, без демо`);
+  assert.equal(result.text,`КЗС: https://git.example.test/20\n√0, ${target_branch} >= 2, без демо`);
   assert.equal(result.needsInput,undefined);assert.ok(!result.text.includes('🐬'));
   assert.deepEqual(counters(),{writes:0,apiReads:1});
  }
