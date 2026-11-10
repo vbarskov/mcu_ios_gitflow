@@ -136,7 +136,9 @@ test('при известном общем размере и отсутстви�
 
 test('форматы КЗС release и явного ГЗС соответствуют назначению, демо только фактическое',async()=>{
  const {plugin,task}=fixture({kzsTargetIsGzs:true,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning'},afterUrl:'https://git.example.test/demo.mp4'},async()=>[]);
- assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',testSeconds:276})).text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, feature/planning >= 2, тест (276 сек), демо');
+ const inGzs=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
+ assert.equal(inGzs.text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, release >= 2, демо');
+ assert.deepEqual(inGzs.missingData,[]);
  task.kzs.target_branch='release/26';
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,'КЗС: https://git.example.test/20\n√0, release/26 >= 2, демо');
  task.kzs.target_branch='minor/20.2';task.afterUrl='';task.kzsTargetIsGzs=false;
@@ -189,7 +191,7 @@ test('разовое подтверждение ГЗС имеет приорит
  const {plugin,task,counters}=fixture({kzsTargetIsGzs:false,kzs:{iid:20,web_url:'https://git.example.test/20',target_branch:'feature/planning'}},async()=>[]);
  const before=structuredClone(task);
  const positive=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true,testSeconds:20});
- assert.equal(positive.text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, feature/planning >= 2, тест (20 сек), без демо');
+ assert.equal(positive.text,'🐬 КЗС в feature/planning: https://git.example.test/20\n√0, release >= 2, без демо');
  assert.equal(positive.text.split('\n')[1].includes('🐬'),false);
  assert.deepEqual(task,before);
  task.kzsTargetIsGzs=true;const savedTrue=structuredClone(task);
@@ -214,8 +216,8 @@ test('minor требует подтверждения как любое назн
  const question=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'});
  assert.equal(question.text,null);assert.equal(question.needsInput,true);
  assert.deepEqual(question.missingData,['kzsTargetIsGzs']);assert.deepEqual(counters(),{writes:0,apiReads:0});
- const answer=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true,testSeconds:5});
- assert.equal(answer.text,'🐬 КЗС в minor/20.2: https://git.example.test/20\n√0, minor/20.2 >= 2, тест (5 сек), без демо');
+ const answer=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs',kzsTargetIsGzs:true});
+ assert.equal(answer.text,'🐬 КЗС в minor/20.2: https://git.example.test/20\n√0, release >= 2, без демо');
  assert.deepEqual(task,before);
  assert.equal((await plugin.call('mcu_chat_message',{taskId:task.id,kind:'kzs'})).text,null);
  assert.deepEqual(counters(),{writes:0,apiReads:1});
