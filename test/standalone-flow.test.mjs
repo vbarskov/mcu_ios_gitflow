@@ -51,12 +51,14 @@ test('автономный MCP-фасад проводит готовый ком
     await plugin.call('mcu_upload',{taskId:t.id,kind:'code',path:image,module:'App',codePath:'App/foo.js'});
     const kzsPreview=await plugin.call('mcu_preview',{taskId:t.id,kind:'kzs'});
     assert.match(kzsPreview.description,/file:/);assert.doesNotMatch(kzsPreview.description,/\/api\/tasks/);
+    assert.ok(kzsPreview.description.endsWith('\n\n`Код по ГОСТу`\n'));
     const finished=await plugin.call('mcu_publish',{taskId:t.id,kind:'kzs',previewToken:kzsPreview.previewToken});
     assert.equal(finished.kzs.state,'opened');
     assert.equal(await git(repo,'diff','--name-only',`origin/release..${finished.kzsBranch}`),'');
     assert.equal(await git(repo,'rev-list','--count',`origin/release..${finished.kzsBranch}`),'2');
     assert.equal(await git(repo,'log','--format=%s',`origin/release..${finished.kzsBranch}`),'Отступ\nОтступ');
     assert.match(finished.kzs.description,/\/uploads\//);assert.doesNotMatch(finished.kzs.description,/Локальный модульный тест/);
+    assert.ok(finished.kzs.description.endsWith('\n\n`Код по ГОСТу`\n'));
     assert.equal(await git(repo,'rev-parse','HEAD'),original);
   }finally{plugin.close();await rm(dir,{recursive:true,force:true});}
 });

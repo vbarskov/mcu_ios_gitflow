@@ -13,14 +13,17 @@ test('описание КЗС начинается со списка УЗС; з�
   assert.match(body,/Сохраняется расписание/);
   assert.match(body,/code\.png/);
   assert.match(body,/Сохранить примечание/);
+  assert.ok(body.endsWith('\n\n`Код по ГОСТу`\n'));
  }
+ const legacy=description({...task,gostCode:'Прежнее значение'},'kzs');
+ assert.ok(legacy.endsWith('`Прежнее значение`\n\n`Код по ГОСТу`\n'));
  assert.equal(title(task,'kzs'),heading);
 });
 
 test('обновление списка УЗС убирает прежний служебный заголовок и сохраняет ручной текст',()=>{
  const rest='Включает следующие УЗС:\n1. !361\n\nИтог: сохранён вручную\n\n## Примечания\n\nТочный ручной текст с !362.';
  const task={uzs:{iid:361},additionalUzs:[{iid:363}]};
- const expected=rest.replace('1. !361','1. !361\n2. !363');
+ const expected=rest.replace('1. !361','1. !361\n2. !363')+'\n\n`Код по ГОСТу`\n';
  assert.equal(updateIncludedUzs('Заголовок\n- !362 #15839 🐬 Доработать планирование №2. Контроль\n\n'+rest,task),expected);
  assert.equal(updateIncludedUzs(expected,task),expected);
  const prose='Заголовок\n- Ручная заметка\n\n'+rest;
@@ -34,6 +37,7 @@ test('УЗС и КЗС не публикуют поле проверок, сох
    const text=description(task,kind,preview);
    assert.doesNotMatch(text,/Проверки:|Фактически выполненные проверки|служебный результат|Не указаны\./);
    if(kind==='kzs'){assert.match(text,/## Демонстрация/);assert.match(text,/Открытие экрана/);assert.match(text,/code\.png/);}
+   else assert.doesNotMatch(text,/`Код по ГОСТу`/);
   }
   assert.equal(task.verification,verification);
  }
