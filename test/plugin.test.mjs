@@ -1,10 +1,11 @@
 import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, writeFile, rm} from 'node:fs/promises';
+import {mkdir, mkdtemp, readFile, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Plugin} from '../lib/plugin.mjs';
 import {Config} from '../lib/config.mjs';
+import {git} from '../lib/core/flow.mjs';
 import {tools, validateArguments} from '../lib/tools.mjs';
 const temporaryDirs=[];
 after(async()=>{for(const dir of temporaryDirs)await rm(dir,{recursive:true,force:true});});
@@ -68,6 +69,53 @@ test('публикация требует актуального предпро�
     await assert.rejects(plugin.call('mcu_publish',{taskId:t.id,kind:'uzs',previewToken:'invented'}),/предпросмотр/);
     assert.equal(invoked,false);
     await assert.rejects(plugin.call('mcu_merge_uzs',{taskId:t.id,confirmation:'Слить !1'}),/УЗС/);
+  } finally { plugin.close(); }
+});
+
+test('фиксация требует активную ветку задачи, а Git Flow использует её готовый коммит после переключения', async () => {
+  const {dir,config,plugin}=await fixture();
+  const repo=join(dir,'repo'), origin=join(dir,'origin.git'), sourceBranch='feature/APP-1';
+  try {
+    await mkdir(repo);
+    config.save({repoPath:repo});
+    await git(dir,'init','--bare',origin);
+    await git(repo,'init','-b','release');
+    await git(repo,'config','user.name','Автор');
+    await git(repo,'config','user.email','author@example.test');
+    const file=join(repo,'app.swift');
+    await writeFile(file,'let value = 1\n');
+    await git(repo,'add','app.swift');
+    await git(repo,'commit','-m','База');
+    await git(repo,'remote','add','origin',origin);
+    await git(repo,'push','-u','origin','release');
+    const t=plugin.store.create({...config.public(),key:'APP-1',title:'Исправить значение',expectedResult:'Значение равно двум',done:'Изменено значение',result:'Возвращается два',changes:[{module:'App',text:'Исправлено значение'}],sourceBranch});
+    const workspace=await plugin.call('mcu_create_workspace',{taskId:t.id,baseBranch:'release',workBranch:sourceBranch});
+    assert.equal(workspace.repoPath,config.public().repoPath);
+    assert.equal(await git(repo,'branch','--show-current'),sourceBranch);
+    await writeFile(file,'let value = 2\n');
+    await git(repo,'commit','-am','Исправить значение');
+    const commit=await git(repo,'rev-parse','HEAD');
+    let published=0;
+    plugin.flowFactory=()=>({uzs:async value=>{published++;return value;}});
+    await git(repo,'switch','release');
+    await assert.rejects(plugin.call('mcu_record_commit',{taskId:t.id}),/ветк.*feature\/APP-1/);
+    await git(repo,'switch',sourceBranch);
+    const recorded=await plugin.call('mcu_record_commit',{taskId:t.id});
+    assert.equal(recorded.analyzedCommit,commit);
+    const {previewToken}=await plugin.call('mcu_preview',{taskId:t.id,kind:'uzs'});
+    const request={taskId:t.id,kind:'uzs',previewToken};
+
+    const draft=join(repo,'draft.swift');
+    await writeFile(draft,'Черновик задачи\n');
+    await assert.rejects(plugin.call('mcu_publish',request),/незакоммиченные файлы/);
+    assert.equal(published,0);
+    await rm(draft);
+    await git(repo,'switch','release');
+    await writeFile(file,'let otherChange = true\n');
+    await plugin.call('mcu_publish',request);
+    assert.equal(published,1);
+    assert.equal(await git(repo,'branch','--show-current'),'release');
+    assert.equal(await readFile(file,'utf8'),'let otherChange = true\n');
   } finally { plugin.close(); }
 });
 

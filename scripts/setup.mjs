@@ -23,7 +23,7 @@ async function main() {
     process.stdout.write('MCU iOS GitFlow — автономная настройка. Пустой ввод сохраняет прежнее значение.\n');
     const input = {};
     for (const [key, label] of [
-      ['repoPath', 'Абсолютный путь к репозиторию'], ['gitlabUrl', 'Адрес GitLab HTTPS'], ['project', 'GitLab project ID или namespace/project'],
+      ['repoPath', 'Абсолютный путь к основной рабочей копии Git'], ['gitlabUrl', 'Адрес GitLab HTTPS'], ['project', 'GitLab project ID или namespace/project'],
       ['targetBranch', 'Ветка назначения'], ['jiraBaseUrl', 'Адрес Jira HTTPS'],
     ]) input[key] = await ask(label, current[key]);
     if (!input.repoPath || !input.project) throw new Error('Укажите папку репозитория и проект GitLab.');
