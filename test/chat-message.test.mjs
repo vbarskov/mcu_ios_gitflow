@@ -25,6 +25,37 @@ test('mcu_chat_message объявлен чтением; формат УЗС со
  assert.deepEqual(counters(),{writes:0,apiReads:1});
 });
 
+test('Прямой ЗС выдаётся двумя строками с Markdown-ссылкой и всеми добавлениями',async()=>{
+ const url='https://git.example.test/team/app/-/merge_requests/21';
+ const zs={iid:21,web_url:url,target_branch:'minor/20.2',description:'## Демонстрация\n\n![Стало](/uploads/result.mp4){width=250}'};
+ const paths=[];
+ const {plugin,task,counters}=fixture({zs},async(_task,path)=>{
+  paths.push(path);
+  return [
+   {new_path:'App/Main.swift',diff:'@@ -1 +1 @@\n-old\n+new'},
+   {new_path:'Tests/MainTests.swift',diff:'@@ -0,0 +1 @@\n+test'},
+  ];
+ });
+ const before=structuredClone(task);
+ const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs',iid:21});
+ assert.equal(result.text,`ЗС [${url}](${url})\n√2, release >= 2, демо`);
+ assert.deepEqual(result.lineCounts,{total:2,technical:1,ordinary:1});
+ assert.deepEqual(result.missingData,[]);assert.deepEqual(task,before);
+ assert.deepEqual(paths,['/merge_requests/21/diffs']);
+ assert.deepEqual(counters(),{writes:0,apiReads:1});
+});
+
+test('Прямой ЗС отмечает отсутствие или неизвестность демо по данным своей карточки',async()=>{
+ const {plugin,task}=fixture({assets:undefined,kzsWithoutDemoConfirmed:true,zs:{iid:21,web_url:'https://git.example.test/21'}},async()=>[]);
+ const unknown=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs'});
+ assert.match(unknown.text,/\n√0, release >= 2, демо \[не указано\]$/);
+ assert.deepEqual(unknown.missingData,['demo']);
+ task.zsWithoutDemoConfirmed=true;
+ const without=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs'});
+ assert.match(without.text,/\n√0, release >= 2, без демо$/);
+ assert.deepEqual(without.missingData,[]);
+});
+
 test('время теста не придумывается и не извлекается из произвольного отчёта',async()=>{
  const {plugin,task}=fixture({verification:'Проверки и тесты не запускались',chatMessages:{uzs:{testSeconds:396}}});
  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'uzs'});
