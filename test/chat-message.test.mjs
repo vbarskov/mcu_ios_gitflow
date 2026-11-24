@@ -25,7 +25,7 @@ test('mcu_chat_message объявлен чтением; формат УЗС со
  assert.deepEqual(counters(),{writes:0,apiReads:1});
 });
 
-test('Прямой ЗС выдаётся тремя строками без эмодзи с собственным названием и временем теста',async()=>{
+test('Прямой ЗС выдаётся тремя строками с названием без кавычек, без эмодзи и с временем теста',async()=>{
  const url='https://git.example.test/team/app/-/merge_requests/21';
  const zs={iid:21,web_url:url,target_branch:'minor/20.2',title:'!21 #1 Мероприятия Исправить проблему',description:'## Демонстрация\n\n![Стало](/uploads/result.mp4){width=250}'};
  const paths=[];
@@ -38,7 +38,7 @@ test('Прямой ЗС выдаётся тремя строками без эм
  });
  const before=structuredClone(task);
  const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs',iid:21,testSeconds:390});
- assert.equal(result.text,`Сливаю ЗС: "Исправить проблему"\n${url}\n√2, release >= 2, тест (390 сек), демо`);
+ assert.equal(result.text,`Сливаю ЗС: Исправить проблему\n${url}\n√2, release >= 2, тест (390 сек), демо`);
  assert.deepEqual(result.lineCounts,{total:2,technical:1,ordinary:1});
  assert.deepEqual(result.missingData,[]);assert.deepEqual(task,before);
  assert.deepEqual(paths,['/merge_requests/21/diffs']);
