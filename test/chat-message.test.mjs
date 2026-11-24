@@ -25,11 +25,11 @@ test('mcu_chat_message объявлен чтением; формат УЗС со
  assert.deepEqual(counters(),{writes:0,apiReads:1});
 });
 
-test('Прямой ЗС выдаётся двумя строками с Markdown-ссылкой и всеми добавлениями',async()=>{
+test('Прямой ЗС выдаётся тремя строками без эмодзи с собственным названием и временем теста',async()=>{
  const url='https://git.example.test/team/app/-/merge_requests/21';
- const zs={iid:21,web_url:url,target_branch:'minor/20.2',description:'## Демонстрация\n\n![Стало](/uploads/result.mp4){width=250}'};
+ const zs={iid:21,web_url:url,target_branch:'minor/20.2',title:'!21 #1 Мероприятия Исправить проблему',description:'## Демонстрация\n\n![Стало](/uploads/result.mp4){width=250}'};
  const paths=[];
- const {plugin,task,counters}=fixture({zs},async(_task,path)=>{
+ const {plugin,task,counters}=fixture({zs,featureName:'Мероприятия'},async(_task,path)=>{
   paths.push(path);
   return [
    {new_path:'App/Main.swift',diff:'@@ -1 +1 @@\n-old\n+new'},
@@ -37,8 +37,8 @@ test('Прямой ЗС выдаётся двумя строками с Markdown
   ];
  });
  const before=structuredClone(task);
- const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs',iid:21});
- assert.equal(result.text,`ЗС [${url}](${url})\n√2, release >= 2, демо`);
+ const result=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs',iid:21,testSeconds:390});
+ assert.equal(result.text,`Сливаю ЗС: "Исправить проблему"\n${url}\n√2, release >= 2, тест (390 сек), демо`);
  assert.deepEqual(result.lineCounts,{total:2,technical:1,ordinary:1});
  assert.deepEqual(result.missingData,[]);assert.deepEqual(task,before);
  assert.deepEqual(paths,['/merge_requests/21/diffs']);
@@ -48,11 +48,11 @@ test('Прямой ЗС выдаётся двумя строками с Markdown
 test('Прямой ЗС отмечает отсутствие или неизвестность демо по данным своей карточки',async()=>{
  const {plugin,task}=fixture({assets:undefined,kzsWithoutDemoConfirmed:true,zs:{iid:21,web_url:'https://git.example.test/21'}},async()=>[]);
  const unknown=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs'});
- assert.match(unknown.text,/\n√0, release >= 2, демо \[не указано\]$/);
- assert.deepEqual(unknown.missingData,['demo']);
+ assert.match(unknown.text,/\n√0, release >= 2, тест \(\[длительность\] сек\), демо \[не указано\]$/);
+ assert.deepEqual(new Set(unknown.missingData),new Set(['demo','testSeconds']));
  task.zsWithoutDemoConfirmed=true;
- const without=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs'});
- assert.match(without.text,/\n√0, release >= 2, без демо$/);
+ const without=await plugin.call('mcu_chat_message',{taskId:task.id,kind:'zs',testSeconds:390});
+ assert.match(without.text,/\n√0, release >= 2, тест \(390 сек\), без демо$/);
  assert.deepEqual(without.missingData,[]);
 });
 
